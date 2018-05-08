@@ -1,5 +1,6 @@
 #PLANNERS = cse exhaustive-firsts schoolbus schoolbus-sliders
-all: gen_laces cse  sb sbb opt stats
+all: gen_laces cse  sb sbb  stats 
+opt: gen_laces opt opt-stats
 
 gen_laces: longer-laces.js
 	./longer-laces.js
@@ -22,9 +23,11 @@ sbb:
 
 stats: generate-stats.js
 	./generate-stats.js results/cse
-	./generate-stats.js results/exhaustive-firsts
 	./generate-stats.js results/schoolbus
 	./generate-stats.js results/schoolbus-sliders
+
+opt-stats: generate-stats.js
+	./generate-stats.js results/exhaustive-firsts
 
 #$(PLANNERS): $(PLANNERS).js
 #	./$(PLANNERS).js data/enum-lace-6

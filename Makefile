@@ -30,9 +30,7 @@ stats: generate-stats.js
 	#./generate-stats.js results/$(PLANNERS)
 		
 clean:
-	rm results/*
-	rmdir results
-	rm csvs/*
-	rmdir csvs
-	rmdir data/enum-lace-6
+	rm -rf results
+	rm -rf csvs
+	rm -rf data/enum-lace-6
 

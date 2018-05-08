@@ -98,6 +98,15 @@ function enumerate_laces(n, limit, save_at){
 };
 exports.enumerate_laces = enumerate_laces;
 if ( require.main === module ) {
+	try {
+		fs.mkdirSync('data/enum-laces-6'); //will this error if subdir exists?
+	} catch (e) {
+		if (e.code === 'EEXIST') {
+			//okay; directory already exists.
+		} else {
+			throw e;
+		}
+	}
 	
 	//enumerate_laces(10,8);
 

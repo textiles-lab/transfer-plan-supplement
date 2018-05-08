@@ -388,7 +388,7 @@ if (require.main === module) {
 			//ignoreStacks:true,
 			//ignoreEmpty:true,
 			//ignoreFirsts:true,
-			outDir:'results/sbs'
+			outDir:'results/schoolbus-sliders'
 		});
 		return;
 	}

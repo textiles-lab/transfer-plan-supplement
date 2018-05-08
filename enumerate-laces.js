@@ -1,3 +1,5 @@
+#!/bin/sh
+':' //; exec "$(command -v nodejs || command -v node)" "$0" "$@"
 var fs = require('fs');
 function enumerate_laces(n, save_at){
 	let order = Array(n).fill(0); // doesn't matter for non-cables	

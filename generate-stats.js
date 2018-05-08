@@ -1,3 +1,6 @@
+#!/bin/sh
+':' //; exec "$(command -v nodejs || command -v node)" "$0" "$@"
+
 
 function getOffset(from_needle, to_needle) {
 	let f = from_needle.match(/^([fb]s?)(-?\d+)$/);

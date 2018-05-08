@@ -58,7 +58,7 @@ if (require.main === module){
 	
 	if (process.argv.length > 2){
 		// needs somethin that skips anything longer than 6-8 stitches;
-		testDriver.runTests(_exh_transfers, {'skipCables':true, 'ignoreFirsts':false, 'ignoreStacks':true, 'ignoreEmpty':false, 'outDir':'results/exh-firsts'});
+		testDriver.runTests(_exh_transfers, {'skipCables':true, 'ignoreFirsts':false, 'ignoreStacks':true, 'ignoreEmpty':false, 'outDir':'results/exhaustive-firsts'});
 	}
 
 	else{

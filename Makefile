@@ -17,7 +17,7 @@ opt: exhaustive-firsts.js exhaustive-search.cpp
 sb: schoolbus.js
 	./schoolbus.js data/enum-laces-6
 
-sbb:
+sbb: schoolbus-sliders.js
 	./schoolbus-sliders.js data/enum-laces-6
 
 stats: generate-stats.js

@@ -11,7 +11,7 @@ cse: cse.js
 	./cse.js data/enum-laces-6
 
 opt: exhaustive-firsts.js exhaustive-search.cpp
-	g++ -std=c++11 exhaustive-search.cpp -o exhaustive 
+	g++ -std=c++11 -O3 exhaustive-search.cpp -o exhaustive  
 	./exhaustive-firsts.js data/enum-laces-6
 
 sb: schoolbus.js

@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Good 'ol lace editor</title>
+<style>
+#dropTarget {
+	position:fixed;
+	left:0;
+	bottom:0;
+	width:100%;
+	height:100%;
+
+	background:#ccc;
+	outline:4px dashed #eee;
+	outline-offset:-20px;
+	z-index:100;
+	visibility:hidden;
+}
+#dropTarget.active {
+	visibility:visible;
+	background:#eee;
+	outline-color:#ccc;
+}
+#file {
+	display:none;
+}
+#fileLabel span {
+	cursor:pointer;
+	text-decoration:underline;
+}
+</style>
+</head>
+<body>
+
+<input id="file" type="file" />
+<label id="fileLabel" for="file"><span>Choose a lace file</span> or drag one into the window to edit it.</label><br />
+<a id="download" href="" download="chart.lace">Save Current Pattern</a><br />
+
+<div style="text-align:center">
+<div>
+<button type="button" onclick="addTop();">+</button>
+<button type="button" onclick="subTop();">-</button>
+</div>
+<div style="display:flex;justify-content:center;align-items:center;">
+<div>
+<button type="button" onclick="addLeft();">+</button>
+<button type="button" onclick="subLeft();">-</button>
+</div>
+<canvas id="canvas"></canvas>
+<div>
+<button type="button" onclick="addRight();">+</button>
+<button type="button" onclick="subRight();">-</button>
+</div>
+</div>
+<div>
+<button type="button" onclick="addBottom();">+</button>
+<button type="button" onclick="subBottom();">-</button>
+</div>
+</div>
+
+<div id="dropTarget"></div>
+
+<script>
+let download = document.getElementById("download");
+
+let canvas = document.getElementById("canvas");
+let ctx = canvas.getContext("2d");
+
+const COLOR_BACKGROUND = '#f5e9da'; //'#5a5a5a';
+const COLOR_YARN = '#bfa6c9';
+const COLOR_OUTLINE = '#291c2a'; //'#fff';
+
+const SCALE = 2;
+
+const BLOCK_WIDTH = 20 * SCALE;
+const BLOCK_HEIGHT = 13 * SCALE;
+
+const CROSS_R = 4;
+const CROSS_T = 3.5;
+
+const CROSS_L1 = {
+	x:0.15 * BLOCK_WIDTH,
+	y:0.5 * BLOCK_HEIGHT - CROSS_R*SCALE,
+	t1x:CROSS_T*SCALE, t1y:0.0*SCALE,
+	t2x:0.0*SCALE, t2y:CROSS_T*SCALE,
+};
+const CROSS_L2 = {
+	x:0.15 * BLOCK_WIDTH + CROSS_R*SCALE,
+	y:0.5 * BLOCK_HEIGHT,
+	t1x:0.0*SCALE, t1y:CROSS_T*SCALE,
+	t2x:CROSS_T*SCALE, t2y:0.0*SCALE,
+};
+
+const CROSS_R1 = {
+	x:BLOCK_WIDTH-CROSS_L1.x,
+	y:CROSS_L1.y,
+	t1x:CROSS_L1.t1x, t1y:-CROSS_L1.t1y,
+	t2x:CROSS_L1.t2x, t2y:-CROSS_L1.t2y,
+};
+const CROSS_R2 = {
+	x:BLOCK_WIDTH-CROSS_L2.x,
+	y:CROSS_L2.y,
+	t1x:CROSS_L2.t1x, t1y:-CROSS_L2.t1y,
+	t2x:CROSS_L2.t2x, t2y:-CROSS_L2.t2y,
+};
+
+
+const YARN_RADIUS = 2;
+const OUTER_RADIUS = YARN_RADIUS + 1.5;
+
+let rows = 20;
+let columns = 20;
+
+let chart = [];
+
+function refresh() {
+	columns = 0;
+	rows = chart.length;
+	for (let r = 0; r < chart.length; ++r) {
+		columns = Math.max(columns, chart[r].length);
+	}
+	saveChart();
+	requestDraw();
+}
+
+function addLeft() {
+	for (let r = 0; r < chart.length; ++r) {
+		chart[r].unshift({stitch:"k", offset:0, first:false});
+	}
+	refresh();
+}
+
+function addRight() {
+	for (let r = 0; r < chart.length; ++r) {
+		chart[r].push({stitch:"k", offset:0, first:false});
+	}
+	refresh();
+}
+
+function addBottom() {
+	let row = [];
+	for (let c = 0; c < columns; ++c) {
+		row.push({stitch:"k", offset:0, first:false});
+	}
+	chart.unshift(row);
+	refresh();
+}
+
+function addTop() {
+	let row = [];
+	for (let c = 0; c < columns; ++c) {
+		row.push({stitch:"k", offset:0, first:false});
+	}
+	chart.push(row);
+	refresh();
+}
+
+
+
+function subLeft() {
+	for (let r = 0; r < chart.length; ++r) {
+		if (chart[r].length > 0) chart[r].shift();
+	}
+	refresh();
+}
+
+function subRight() {
+	for (let r = 0; r < chart.length; ++r) {
+		if (chart[r].length > 0) chart[r].pop();
+	}
+	refresh();
+}
+
+function subBottom() {
+	if (chart.length) chart.shift();
+	refresh();
+}
+
+function subTop() {
+	if (chart.length) chart.pop();
+	refresh();
+}
+
+
+
+function loadChart(data) {
+	chart = [];
+	rows = 0;
+	columns = 0;
+	data.split(/\n/).reverse().forEach(function(line){
+		console.log("Line: " + line);
+		//comments:
+		if (line.indexOf("#") !== -1) {
+			line = line.substr(0, line.indexOf("#"));
+		}
+		var toks = [];
+		var haveKP = false;
+		line.split(/\s+/).forEach(function(tok){
+			if (tok !== "") toks.push(tok);
+			if (tok.indexOf("k") !== -1 || tok.indexOf("p") !== -1) haveKP = true;
+		});
+		if (toks.length === 0) return;
+		//console.log("Toks: " + toks.join(","));
+		if (haveKP) {
+			//knit/purl line!
+			var row = [];
+			toks.forEach(function(tok){
+				if (tok === "k" || tok === "p") {
+					row.push({stitch:tok, offset:0, first:false});
+				} else {
+					console.error("Expecting only k/p in knit line. Got '" + tok + "'.");
+					throw "Invalid token.";
+				}
+			});
+			chart.push(row);
+			columns = Math.max(columns, row.length);
+			rows = chart.length;
+		} else {
+			//transfer line!
+			if (chart.length === 0) {
+				throw "Transfer row after nothing";
+			}
+			var row = chart[chart.length-1];
+			toks.forEach(function(tok,i){
+				var m = tok.match(/^([+-]?\d+)([*]?)$/);
+				if (m === null) {
+					console.error("Expecting only offsets (possibly with stars) in xfer row. Got '" + tok + "'.");
+					throw "Invalid token.";
+				}
+				if (i >= row.length) {
+					throw "Transfer row too long";
+				}
+				row[i].offset = parseInt(m[1]);
+				row[i].first =  (m[2] === '*');
+			});
+		}
+	});
+
+	saveChart();
+	requestDraw();
+}
+
+function saveChart() {
+	let data = [];
+	for (let r = 0; r < chart.length; ++r) {
+		let kp = "";
+		let xfer = "";
+		for (let c = 0; c < chart[r].length; ++c) {
+			let s = chart[r][c];
+			kp += " " + s.stitch + "  ";
+			if (s.offset < 0) {
+				xfer += "" + s.offset;
+			} else if (s.offset > 0) {
+				xfer += "+" + s.offset;
+			} else {
+				xfer += " 0";
+			}
+			if (s.first) {
+				xfer += "* ";
+			} else {
+				xfer += "  ";
+			}
+		}
+		data.unshift(kp);
+		data.unshift(xfer);
+	}
+	data = data.join("\n");
+	download.href = "data:text/plain;charset=utf-8," + encodeURIComponent(data);
+	return data;
+}
+
+for (let r = 0; r < rows; ++r) {
+	let row = [];
+	for (let c = 0; c < columns; ++c) {
+		row.push({stitch:"k", offset:0, first:false});
+	}
+	chart.push(row);
+}
+
+function divide(xA, yA, xB, yB, xC, yC, xD, yD, t = 0.5) {
+
+	let xAB = t * (xB - xA) + xA;
+	let yAB = t * (yB - yA) + yA;
+	let xBC = t * (xC - xB) + xB;
+	let yBC = t * (yC - yB) + yB;
+	let xCD = t * (xD - xC) + xC;
+	let yCD = t * (yD - yC) + yC;
+
+	let xABC = t * (xBC - xAB) + xAB;
+	let yABC = t * (yBC - yAB) + yAB;
+	let xBCD = t * (xCD - xBC) + xBC;
+	let yBCD = t * (yCD - yBC) + yBC;
+
+	let xABCD = t * (xBCD - xABC) + xABC;
+	let yABCD = t * (yBCD - yABC) + yABC;
+
+	return [
+		xA, yA,
+			xAB, yAB,
+			xABC, yABC,
+		xABCD, yABCD,
+			xBCD, yBCD,
+			xCD, yCD,
+		xD, yD
+	];
+}
+
+function draw() {
+	resize();
+	ctx.resetTransform();
+	ctx.fillStyle = COLOR_BACKGROUND;
+	ctx.fillRect(0,0,canvas.width,canvas.height);
+	ctx.transform(1,0, 0,-1, 0,canvas.height);
+
+	//three sets of yarn curves:
+	let legs = [];
+	let rowLoops = [];
+	let rowFirstLoops = [];
+	let bandages = [];
+
+	for (let r = 0; r < rows; ++r) {
+		let loops = [];
+		rowLoops.push(loops);
+		let firstLoops = [];
+		rowFirstLoops.push(firstLoops);
+		for (let c = 0; c < columns; ++c) {
+			let s = chart[r][c];
+			let x = BLOCK_WIDTH * c;
+			let y = BLOCK_HEIGHT * r;
+			let x2 = BLOCK_WIDTH * (c+s.offset);
+			let y2 = BLOCK_HEIGHT * (r+1);
+
+			legs.push([
+				x+0,y+CROSS_L1.y,
+					x+1, y+CROSS_L1.y,
+					x+CROSS_L1.x-CROSS_L1.t1x, y+CROSS_L1.y-CROSS_L1.t1y,
+				x+CROSS_L1.x, y+CROSS_L1.y,
+					x+CROSS_L1.x+CROSS_L1.t1x, y+CROSS_L1.y+CROSS_L1.t1y,
+					x+CROSS_L2.x-CROSS_L2.t1x, y+CROSS_L2.y-CROSS_L2.t1y,
+				x+CROSS_L2.x, y+CROSS_L2.y,
+			]);
+
+			legs.push([
+				x+CROSS_R2.x,y+CROSS_R2.y,
+					x+CROSS_R2.x+CROSS_R2.t1x, y+CROSS_R2.y+CROSS_R2.t1y,
+					x+CROSS_R1.x-CROSS_R1.t1x, y+CROSS_R1.y-CROSS_R1.t1y,
+				x+CROSS_R1.x, y+CROSS_R1.y,
+					x+CROSS_R1.x+CROSS_R1.t1x, y+CROSS_R1.y+CROSS_R1.t1y,
+					x+BLOCK_WIDTH-1,y+CROSS_R1.y,
+				x+BLOCK_WIDTH,y+CROSS_R1.y
+			]);
+
+
+			(s.first ? firstLoops : loops).push([
+				x+CROSS_L2.x, y+CROSS_L2.y,
+					x+CROSS_L2.x+CROSS_L2.t1x, y+CROSS_L2.y+CROSS_L2.t1y,
+					x2+CROSS_L1.x-CROSS_L1.t2x, y2+CROSS_L1.y-CROSS_L1.t2y,
+				x2+CROSS_L1.x, y2+CROSS_L1.y,
+					x2+CROSS_L1.x+CROSS_L1.t2x, y2+CROSS_L1.y+CROSS_L1.t2y,
+					x2+CROSS_L2.x-CROSS_L2.t2x, y2+CROSS_L2.y-CROSS_L2.t2y,
+				x2+CROSS_L2.x, y2+CROSS_L2.y,
+					x2+CROSS_L2.x+CROSS_L2.t2x, y2+CROSS_L2.y+CROSS_L2.t2y,
+					x2+CROSS_R2.x-CROSS_R2.t2x, y2+CROSS_R2.y-CROSS_R2.t2y,
+				x2+CROSS_R2.x, y2+CROSS_R2.y,
+					x2+CROSS_R2.x+CROSS_R2.t2x, y2+CROSS_R2.y+CROSS_R2.t2y,
+					x2+CROSS_R1.x-CROSS_R1.t2x, y2+CROSS_R1.y-CROSS_R1.t2y,
+				x2+CROSS_R1.x, y2+CROSS_R1.y,
+					x2+CROSS_R1.x+CROSS_R1.t2x, y2+CROSS_R1.y+CROSS_R1.t2y,
+					x+CROSS_R2.x-CROSS_R2.t1x, y+CROSS_R2.y-CROSS_R2.t1y,
+				x+CROSS_R2.x, y+CROSS_R2.y,
+			]);
+
+			let sL = divide(
+				x+CROSS_L1.x, y+CROSS_L1.y,
+					x+CROSS_L1.x+CROSS_L1.t1x, y+CROSS_L1.y+CROSS_L1.t1y,
+					x+CROSS_L2.x-CROSS_L2.t1x, y+CROSS_L2.y-CROSS_L2.t1y,
+				x+CROSS_L2.x, y+CROSS_L2.y,
+				0.5
+			);
+
+			let sR = divide(
+				x+CROSS_R1.x, y+CROSS_R1.y,
+					x+CROSS_R1.x-CROSS_R1.t1x, y+CROSS_R1.y-CROSS_R1.t1y,
+					x+CROSS_R2.x+CROSS_R2.t1x, y+CROSS_R2.y+CROSS_R2.t1y,
+				x+CROSS_R2.x, y+CROSS_R2.y,
+				0.5
+			);
+
+			if (s.stitch === "k") {
+				let halfL = divide(
+					x+CROSS_L2.x, y+CROSS_L2.y,
+						x+CROSS_L2.x+CROSS_L2.t1x, y+CROSS_L2.y+CROSS_L2.t1y,
+						x2+CROSS_L1.x-CROSS_L1.t2x, y2+CROSS_L1.y-CROSS_L1.t2y,
+					x2+CROSS_L1.x, y2+CROSS_L1.y,
+					0.3
+				);
+
+				let halfR = divide(
+					x+CROSS_R2.x, y+CROSS_R2.y,
+						x+CROSS_R2.x-CROSS_R2.t1x, y+CROSS_R2.y-CROSS_R2.t1y,
+						x2+CROSS_R1.x+CROSS_R1.t2x, y2+CROSS_R1.y+CROSS_R1.t2y,
+					x2+CROSS_R1.x, y2+CROSS_R1.y,
+					0.3
+				);
+				bandages.push([
+					sL[6], sL[7],
+						sL[8], sL[9],
+						sL[10], sL[11],
+					sL[12], sL[13],
+						halfL[2], halfL[3],
+						halfL[4], halfL[5],
+					halfL[6], halfL[7]
+				]);
+				bandages.push([
+					sR[6], sR[7],
+						sR[8], sR[9],
+						sR[10], sR[11],
+					sR[12], sR[13],
+						halfR[2], halfR[3],
+						halfR[4], halfR[5],
+					halfR[6], halfR[7]
+				]);
+			} else if (s.stitch === "p") {
+				bandages.push([
+					x+0,y+CROSS_L1.y,
+						x+1, y+CROSS_L1.y,
+						x+CROSS_L1.x-CROSS_L1.t1x, y+CROSS_L1.y-CROSS_L1.t1y,
+					sL[0], sL[1],
+						sL[2], sL[3],
+						sL[4], sL[5],
+					sL[6], sL[7],
+				]);
+				bandages.push([
+					x+BLOCK_WIDTH,y+CROSS_R1.y,
+						x+BLOCK_WIDTH-1, y+CROSS_R1.y,
+						x+CROSS_R1.x-CROSS_R1.t1x, y+CROSS_R1.y-CROSS_R1.t1y,
+					sR[0], sR[1],
+						sR[2], sR[3],
+						sR[4], sR[5],
+					sR[6], sR[7],
+				]);
+			} else {
+				//unknown stitch type
+			}
+		}
+	}
+
+	function emitSeparate(arr, backCap, frontCap) {
+		arr.forEach(function(pts){
+			ctx.beginPath();
+			console.assert(pts.length % 6 === 2);
+			ctx.moveTo(pts[0], pts[1]);
+			for (let i = 2; i + 5 < pts.length; i += 6) {
+				ctx.bezierCurveTo(pts[i], pts[i+1], pts[i+2], pts[i+3], pts[i+4], pts[i+5]);
+			}
+			ctx.lineJoin = 'round';
+			ctx.lineWidth = 2 * OUTER_RADIUS;
+			ctx.strokeStyle = COLOR_OUTLINE;
+			ctx.lineCap = backCap;
+			ctx.stroke();
+			ctx.lineWidth = 2 * YARN_RADIUS;
+			ctx.strokeStyle = COLOR_YARN;
+			ctx.lineCap = frontCap;
+			ctx.stroke();
+		});
+	};
+
+
+	function emit(arr, backCap, frontCap) {
+		ctx.beginPath();
+		arr.forEach(function(pts){
+			console.assert(pts.length % 6 === 2);
+			ctx.moveTo(pts[0], pts[1]);
+			for (let i = 2; i + 5 < pts.length; i += 6) {
+				ctx.bezierCurveTo(pts[i], pts[i+1], pts[i+2], pts[i+3], pts[i+4], pts[i+5]);
+			}
+		});
+		ctx.lineJoin = 'round';
+		ctx.lineWidth = 2 * OUTER_RADIUS;
+		ctx.strokeStyle = COLOR_OUTLINE;
+		ctx.lineCap = backCap;
+		ctx.stroke();
+		ctx.lineWidth = 2 * YARN_RADIUS;
+		ctx.strokeStyle = COLOR_YARN;
+		ctx.lineCap = frontCap;
+		ctx.stroke();
+	};
+
+	emit(legs, 'round', 'round');
+
+	for (let r = rows - 1; r >= 0; --r) {
+		emitSeparate(rowLoops[r], 'butt', 'round');
+		emitSeparate(rowFirstLoops[r], 'butt', 'round');
+	}
+
+	emit(bandages, 'butt', 'round');
+
+}
+
+function resize() {
+	canvas.width = columns * BLOCK_WIDTH;
+	canvas.height = rows * BLOCK_HEIGHT;
+	canvas.style.width = (canvas.width + "px");
+	canvas.style.height = (canvas.height + "px");
+}
+
+function requestDraw() {
+	if (requestDraw.requested) return;
+	requestDraw.requested = true;
+	window.requestAnimationFrame(function(){
+		delete requestDraw.requested;
+		draw();
+	});
+}
+
+var dragging = null;
+
+function getBlock(evt) {
+	let rect = canvas.getBoundingClientRect();
+	let x = evt.clientX - rect.left;
+	let y = rect.bottom - evt.clientY;
+	let r = Math.floor(y / BLOCK_HEIGHT);
+	let c = Math.floor(x / BLOCK_WIDTH);
+	return {r:r, c:c};
+}
+
+canvas.addEventListener('mousedown', function(evt){
+	evt.preventDefault();
+	dragging = null;
+	let b = getBlock(evt);
+	if (b.r < 0 || b.r >= chart.length || b.c < 0 || b.c >= chart[b.r].length) return false;
+	if (evt.button === 2) {
+		chart[b.r][b.c].stitch = (chart[b.r][b.c].stitch === "k" ? "p" : "k");
+		saveChart();
+		requestDraw();
+		return false;
+	}
+	for (let c = 0; c < chart[b.r].length; ++c) {
+		if (c + chart[b.r][c].offset === b.c + chart[b.r][b.c].offset) {
+			chart[b.r][c].first = (c === b.c);
+		}
+	}
+	dragging = b;
+	saveChart();
+	requestDraw();
+	return false;
+});
+canvas.addEventListener('mousemove', function(evt){
+	evt.preventDefault();
+	let b = getBlock(evt);
+	if (b.r < 0 || b.r >= chart.length || b.c < 0 || b.c >= chart[b.r].length) return false;
+	if (dragging) {
+		chart[dragging.r][dragging.c].offset = b.c - dragging.c;
+		for (let c = 0; c < chart[dragging.r].length; ++c) {
+			if (c + chart[dragging.r][c].offset === dragging.c + chart[dragging.r][dragging.c].offset) {
+				chart[dragging.r][c].first = (c === dragging.c);
+			}
+		}
+		saveChart();
+		requestDraw();
+	}
+	return false;
+});
+canvas.addEventListener('mouseup', function(evt){
+	evt.preventDefault();
+	dragging = null;
+	return false;
+});
+canvas.addEventListener('contextmenu', function(evt){
+	evt.preventDefault();
+	return false;
+});
+
+resize();
+saveChart();
+requestDraw();
+
+
+//--------------------------------------
+//drag/drop stuff:
+
+function readFile(file) {
+	console.log("Attempting to read file: '" + file.name + "'");
+	var reader = new FileReader();
+	reader.onload = function(){
+		download.download = file.name;
+		loadChart(reader.result);
+	}
+	reader.readAsText(file);
+}
+
+var dropTarget = document.getElementById("dropTarget");
+//dragging into the window also loads files:
+dropTarget.addEventListener('dragover', function(evt){
+	dropTarget.classList.add("active");
+	evt.preventDefault();
+	return false;
+});
+dropTarget.addEventListener('dragleave', function(evt){
+	dropTarget.classList.remove("active");
+	evt.preventDefault();
+	return false;
+});
+dropTarget.addEventListener('drop', function(evt){
+	dropTarget.classList.remove("active");
+	try {
+		readFile(evt.dataTransfer.files[0]);
+	} catch (e) {
+		console.log(e);
+	}
+	evt.preventDefault();
+	return false;
+});
+
+//dragging into the window shows the target:
+document.addEventListener('dragover', function(evt){
+	dropTarget.classList.add("active");
+	evt.preventDefault();
+	return false;
+});
+
+var file = document.getElementById("file");
+file.addEventListener('change', function(evt){
+	try {
+		readFile(file.files[0]);
+	} catch (e) {
+		console.log(e);
+	}
+	evt.preventDefault();
+	return false;
+});
+
+
+</script>
+</body>
+</html>

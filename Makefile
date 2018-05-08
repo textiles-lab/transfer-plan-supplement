@@ -1,6 +1,6 @@
 #PLANNERS = cse exhaustive-firsts schoolbus schoolbus-sliders
 all: gen_laces cse  sb sbb  stats 
-opt: gen_laces opt opt-stats
+opt: gen_laces opt-run opt-stats
 
 gen_laces: longer-laces.js
 	./longer-laces.js
@@ -11,7 +11,7 @@ csvs:
 cse: cse.js
 	./cse.js data/enum-laces-6
 
-opt: exhaustive-firsts.js exhaustive-search.cpp
+opt-run: exhaustive-firsts.js exhaustive-search.cpp
 	g++ -std=c++11 -O3 exhaustive-search.cpp -o exhaustive  
 	./exhaustive-firsts.js data/enum-laces-6
 

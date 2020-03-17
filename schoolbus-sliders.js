@@ -25,6 +25,7 @@ function schoolbus_sliders(offsets, firsts, xfer) {
 		}
 	}
 
+
 	//SliderySchoolbus moves stitches from needles 'at' to needles 'to',
 	// respecting 'firsts', with the caveat that some 3-1 decreases might
 	// trigger additional transfer passes.
@@ -260,10 +261,18 @@ function schoolbus_sliders(offsets, firsts, xfer) {
 				}
 			}
 		}
+		//more complete check that zero pass is first pass
+		let skipZero = true;
+		for (let ofs = maxOffset; ofs > 0; --ofs) {
+			if (regularPasses[ofs-minOffset].length > 0) {
+				skipZero = false;
+				break;
+			}
+		}
 
 		//move everything to back bed:
 		for (let ofs = maxOffset; ofs >= minOffset; --ofs) {
-			if (ofs === 0 && ofs === maxOffset) {
+			if (ofs === 0 && skipZero) {
 				//in the case where the zero pass is also the first pass, don't need to move to back bed.
 			} else {
 				//move to back bed so stitches can be returned:
@@ -281,7 +290,7 @@ function schoolbus_sliders(offsets, firsts, xfer) {
 			//(order of hooks/sliders doesn't matter, all stitches are on different needles, so head to different destinations)
 
 			//first, drop to needles:
-			if (ofs === 0 && ofs === maxOffset) {
+			if (ofs === 0 && skipZero) {
 				//not needed when first pass is zero pass
 			} else {
 				regularPasses[ofs-minOffset].forEach(function(i){
@@ -385,6 +394,7 @@ if (require.main === module) {
 		testDriver.runTests(_sbs, {
 			skipCables:true,
 			skipLong:true,
+			halfGauge:true,
 			//ignoreStacks:true,
 			//ignoreEmpty:true,
 			//ignoreFirsts:true,

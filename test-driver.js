@@ -86,8 +86,10 @@ function test(method, offsets, firsts, orders, limit, options) {
 	const ignoreFirsts = Boolean(options.ignoreFirsts);
 	const ignoreStacks = Boolean(options.ignoreStacks);
 	const ignoreEmpty = Boolean(options.ignoreEmpty);
+	const halfGauge = Boolean(options.halfGauge)
 
 	//----------------------------------
+
 
 	function offsetsToString(offsets) {
 		let info = "";
@@ -104,12 +106,16 @@ function test(method, offsets, firsts, orders, limit, options) {
 	//will track positions of each loop by using this needles object:
 	let needles = {};
 	for (let i = 0; i < offsets.length; ++i) {
-		needles['f' + i] = [i];
+		if (halfGauge) {
+			needles['f' + (2*i)] = [i];
+		} else {
+			needles['f' + i] = [i];
+		}
 	}
 
 	function dumpNeedles() {
 		let minNeedle = 0;
-		let maxNeedle = offsets.length-1;
+		let maxNeedle = halfGauge ? 2*offsets.length-1: offsets.length-1;
 		for (let n in needles) {
 			let m = n.match(/^[fb]s?(-?\d+)$/);
 			console.assert(m);
@@ -162,6 +168,14 @@ function test(method, offsets, firsts, orders, limit, options) {
 	function xfer(fromBed, fromIndex, toBed, toIndex) {
 		let cmd = "xfer " + fromBed + fromIndex + " " + toBed + toIndex;
 		console.log(cmd);
+		if (halfGauge) {
+			fromIndex = fromBed.length === 1 ? 2*fromIndex : 2*fromIndex+1;
+			toIndex = toBed.length === 1 ? 2*toIndex : 2*toIndex+1;
+			fromBed = fromBed[0];
+			toBed = toBed[0];
+		}
+		cmd = "xfer " + fromBed + fromIndex + " " + toBed + toIndex;
+		console.log(cmd);
 		log.push(cmd);
 
 		console.assert(
@@ -186,9 +200,11 @@ function test(method, offsets, firsts, orders, limit, options) {
 		let maxRacking = Infinity;
 		for (let i = 1; i < offsets.length; ++i) {
 			if (at[i-1].bed[0] === at[i].bed[0]) continue;
-			let slack = Math.max(1, Math.abs( i+offsets[i] - (i-1+offsets[i-1]) ));
+			let slack = halfGauge ? Math.max(3, 1+2*Math.abs(1+offsets[i]-offsets[i-1])) : Math.max(1, Math.abs( i+offsets[i] - (i-1+offsets[i-1]) ));
 			let back  = (at[i].bed[0] === 'b' ? at[i].needle : at[i-1].needle);
+			console.log('b'+back);
 			let front = (at[i].bed[0] === 'b' ? at[i-1].needle : at[i].needle);
+			console.log('f'+front);
 
 			//-slack <= back + racking - front <= slack
 			minRacking = Math.max(minRacking, -slack - back + front);
@@ -254,7 +270,7 @@ function test(method, offsets, firsts, orders, limit, options) {
 	let invalidFirsts = 0;
 
 	for (let i = 0; i < offsets.length; ++i) {
-		var n = needles['f' + (i + offsets[i])];
+		var n = halfGauge ? needles['f' + 2*(i + offsets[i])]: needles['f' + (i + offsets[i])];
 		if (n.indexOf(i) === -1) throw "loop on " + ('f' + i) + " did not reach " + ('f' + (i + offsets[i]));
 		//console.assert(n.indexOf(i) !== -1, "needle got to destination");
 		if (firsts[i]) {
@@ -314,6 +330,7 @@ function runTests(method, options) {
 	if (options.ignoreFirsts) testOptions.ignoreFirsts = true;
 	if (options.ignoreStacks) testOptions.ignoreStacks = true;
 	if (options.ignoreEmpty) testOptions.ignoreEmpty = true;
+	if (options.halfGauge) testOptions.halfGauge = true;
 
 	//------- actual testing code ------
 
@@ -446,6 +463,12 @@ function runTests(method, options) {
 				let transfer_name = path.basename(filename, '.xfers');
 				console.log(options.outDir);
 				let results_file = path.join(options.outDir, transfer_name + '.xout');
+
+				if (options.halfGauge) {
+					for (let i = 0; i < data.orders.length; i++) {
+						data.offsets[i] = data.offsets[i]*2;
+					}					
+				}
 
 				//NOTE: explicitly building an object to avoid leaking any extra fields through from data
 				let result_string = ";" + JSON.stringify({

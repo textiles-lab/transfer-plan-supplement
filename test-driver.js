@@ -25,6 +25,7 @@
 //  if options.skipLace is set, does not attempt test cases with lace (== stacking loops)
 //  if options.skipLong is set, does not attempt test cases with offsets outside of maxTransfer
 //  if options.skipFinished is set, does not attempt test cases with offsets of all zero
+//  if options.halfGauge is set, runs problem in half gauge. sets normal needles to even indices and slides to odd
 //  options.ignoreFirsts, options.ignoreStacks are passed to test
 //
 //  returns an object:
@@ -330,7 +331,6 @@ function runTests(method, options) {
 	if (options.ignoreFirsts) testOptions.ignoreFirsts = true;
 	if (options.ignoreStacks) testOptions.ignoreStacks = true;
 	if (options.ignoreEmpty) testOptions.ignoreEmpty = true;
-	if (options.halfGauge) testOptions.halfGauge = true;
 
 	//------- actual testing code ------
 
@@ -349,8 +349,16 @@ function runTests(method, options) {
 		skippedFinished:0,
 		invalid:0 //test cases that were skipped because the file was malformed
 	};
+	
+	let curr_arg = 2;
+	if (process.argv[curr_arg]=="-h") {
+		console.log("expand offsets to half gauge");
+		testOptions.halfGauge = true;
+		++curr_arg;
+	} 	
 
-	for (let i = 2; i < process.argv.length; ++i) {
+	for (let i = curr_arg; i < process.argv.length; ++i) {
+	
 		let name = process.argv[i];
 		if (name.endsWith(path.sep)) name = name.substr(0,name.length-1);
 		const lstats = fs.lstatSync(name);
@@ -465,6 +473,7 @@ function runTests(method, options) {
 				let results_file = path.join(options.outDir, transfer_name + '.xout');
 
 				if (options.halfGauge) {
+					data.transferMax = (data.transferMax*2)+1;
 					for (let i = 0; i < data.orders.length; i++) {
 						data.offsets[i] = data.offsets[i]*2;
 					}					

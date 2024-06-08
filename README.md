@@ -6,5 +6,6 @@ The transfer planning algorithms cse, schoolbus, schoolbus-sliders, and exhausti
 
 You can view a transfer plan (.xout file) with animation by using the included `flat-transfers.html`, or call `node flat-transfer-visualizer.js` from the command line to create SVG files of the plan.
 
+Running any transfer planning algorithm with flag -h will convert the problem to half gauge. This allows one to run schoolbus+sliders without any sliders.
 ## Creating Laces
 Also included is make-lace.html, a visual tool for making laces. It reads and writes .lace files, which encode both the knitting information and the transfer problem as an offset formulation. In make-lace.html, you drag stitches to create stacks, click on a given stitch to send it to the front of a stack, and right click to toggle between knit and purl. The resulting .lace file can then be passed to lace-to-knitout.js, which will create a knitout file using the transfer plan passed in as a parameter. For information on the knitout specification, see (https://textiles-lab.github.io/knitout/knitout.html).

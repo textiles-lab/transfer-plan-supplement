@@ -391,15 +391,26 @@ if (require.main === module) {
 	}
 
 	if (process.argv.length > 2) {
-		testDriver.runTests(_sbs, {
-			skipCables:true,
-			skipLong:true,
-			halfGauge:true,
-			//ignoreStacks:true,
-			//ignoreEmpty:true,
-			//ignoreFirsts:true,
-			outDir:'results/schoolbus-sliders'
-		});
+		if (process.argv[2]=="-h") {
+			testDriver.runTests(_sbs, {
+				skipCables:true,
+				skipLong:true,
+				//ignoreStacks:true,
+				//ignoreEmpty:true,
+				//ignoreFirsts:true,
+				outDir:'results/schoolbus-sliders-half'
+			});
+
+		} else {
+			testDriver.runTests(_sbs, {
+				skipCables:true,
+				skipLong:true,
+				//ignoreStacks:true,
+				//ignoreEmpty:true,
+				//ignoreFirsts:true,
+				outDir:'results/schoolbus-sliders'
+			});
+		}
 		return;
 	}
 

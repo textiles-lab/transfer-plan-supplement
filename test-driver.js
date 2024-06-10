@@ -353,7 +353,7 @@ function runTests(method, options) {
 	let curr_arg = 2;
 	if (process.argv[curr_arg]=="-h") {
 		console.log("expand offsets to half gauge");
-		testOptions.halfGauge = true;
+		options.halfGauge = true;
 		++curr_arg;
 	} 	
 

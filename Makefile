@@ -36,5 +36,5 @@ opt-stats: generate-stats.js
 clean:
 	rm -rf results
 	rm -rf csvs
-	rm -rf data/enum-lace-6
+	rm -rf data/enum-laces-6
 

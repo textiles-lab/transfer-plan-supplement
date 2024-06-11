@@ -3,6 +3,7 @@
 "use strict";
 
 var fs = require('fs');
+var path = require('path');
 
 //make laces with n stitches and offsets bounded in absolute value by 'limit'
 
@@ -16,8 +17,8 @@ function enumerate_laces(n, limit, save_at){
 		// this code should return in same index so not bothering sha256 and all that..but maybe should
 		if (typeof(save_at) !== 'undefined') {
 			let str = {"offsets":offsets,"firsts":firsts,"orders":order,"transferMax":limit};
-			let filename = save_at + 'all' + n + '-max' + limit + '_' + oi.toString() + '_' + fi.toString() + '.xfers';
-			fs.writeFileSync(filename, JSON.stringify(str) , 'utf8');
+			let filename = 'all' + n + '-max' + limit + '_' + oi.toString() + '_' + fi.toString() + '.xfers';
+			fs.writeFileSync(path.join(save_at, filename), JSON.stringify(str) , 'utf8');
 		}
 	}
 	
@@ -98,8 +99,19 @@ function enumerate_laces(n, limit, save_at){
 };
 exports.enumerate_laces = enumerate_laces;
 if ( require.main === module ) {
+	//default parameters
+	let stitches = 6;
+	let rack_limit = 8;
+	let dir_name = 'data/enum-laces-6';
+
+	if (process.argv.length > 4) {
+		stitches = parseInt(process.argv[2]);
+		rack_limit = parseInt(process.argv[3]);
+		dir_name = process.argv[4];
+	}
+
 	try {
-		fs.mkdirSync('data/enum-laces-6'); //will this error if subdir exists?
+		fs.mkdirSync(dir_name); //will this error if subdir exists?
 	} catch (e) {
 		if (e.code === 'EEXIST') {
 			//okay; directory already exists.
@@ -110,8 +122,8 @@ if ( require.main === module ) {
 	
 	//enumerate_laces(10,8);
 
-	enumerate_laces(6,8,'data/enum-laces-6/');
-	//enumerate_laces(8,8,'data/enum-laces-8/');
+	//enumerate_laces(6,8,'data/enum-laces-6/');
+	enumerate_laces(stitches, rack_limit, dir_name);
 	//enumerate_laces(10,8,'data/enum-laces-10/'); //<--- takes many gigs
 
 }

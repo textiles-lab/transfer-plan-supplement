@@ -390,7 +390,7 @@ if (require.main === module) {
 		schoolbus_sliders(offsets, firsts, xfer);
 	}
 
-	if (process.argv.length > 2) {
+	if (process.argv.length > 3) {
 		if (process.argv[2]=="-h") {
 			testDriver.runTests(_sbs, {
 				skipCables:true,
